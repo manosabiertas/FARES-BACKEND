@@ -93,36 +93,45 @@ class DriveSearchService:
         return build('drive', 'v3', credentials=creds)
 
     def buscar_en_carpeta(self, query: str, carpeta_id: str) -> List[Dict]:
-        """Buscar archivos en una carpeta específica"""
+        """Buscar archivos en una carpeta específica usando full-text search y paginación."""
+        archivos_formateados = []
+        page_token = None
         try:
-            # Construir query de búsqueda
-            search_query = f"name contains '{query}' and parents in '{carpeta_id}'"
+            while True:
+                # Construir query de búsqueda para full-text search
+                search_query = f"fullText contains '{query}' and '{carpeta_id}' in parents"
 
-            print(f"DEBUG: Buscando en carpeta {carpeta_id} con query: {search_query}")
+                print(f"DEBUG: Buscando en carpeta {carpeta_id} con query: {search_query}")
 
-            # Ejecutar búsqueda
-            results = self.service.files().list(
-                q=search_query,
-                pageSize=50,
-                fields="nextPageToken, files(id, name, webViewLink, webContentLink, mimeType, size, modifiedTime)"
-            ).execute()
+                # Ejecutar búsqueda
+                results = self.service.files().list(
+                    q=search_query,
+                    pageSize=100,  # Aumentado para eficiencia
+                    fields="nextPageToken, files(id, name, webViewLink, webContentLink, mimeType, size, modifiedTime)",
+                    pageToken=page_token
+                ).execute()
 
-            archivos = results.get('files', [])
-            print(f"DEBUG: Encontrados {len(archivos)} archivos")
+                archivos = results.get('files', [])
+                print(f"DEBUG: Encontrados {len(archivos)} archivos en esta página.")
 
-            # Formatear resultados
-            archivos_formateados = []
-            for archivo in archivos:
-                archivos_formateados.append({
-                    "id": archivo.get('id'),
-                    "name": archivo.get('name'),
-                    "view_link": archivo.get('webViewLink'),
-                    "download_link": f"https://drive.google.com/file/d/{archivo.get('id')}/view",
-                    "mime_type": archivo.get('mimeType'),
-                    "size": archivo.get('size'),
-                    "modified_time": archivo.get('modifiedTime')
-                })
+                # Formatear y agregar resultados
+                for archivo in archivos:
+                    archivos_formateados.append({
+                        "id": archivo.get('id'),
+                        "name": archivo.get('name'),
+                        "view_link": archivo.get('webViewLink'),
+                        "download_link": f"https://drive.google.com/file/d/{archivo.get('id')}/view",
+                        "mime_type": archivo.get('mimeType'),
+                        "size": archivo.get('size'),
+                        "modified_time": archivo.get('modifiedTime')
+                    })
 
+                # Avanzar a la siguiente página
+                page_token = results.get('nextPageToken', None)
+                if page_token is None:
+                    break  # Salir del bucle si no hay más páginas
+
+            print(f"DEBUG: Total de archivos encontrados: {len(archivos_formateados)}")
             return archivos_formateados
 
         except HttpError as error:
@@ -133,13 +142,22 @@ class DriveSearchService:
             return []
 
     def buscar_en_todas_las_carpetas(self, query: str) -> Dict[str, List[Dict]]:
-        """Buscar en todas las carpetas configuradas"""
+        """Buscar en todas las carpetas configuradas. Si la query está vacía, devuelve todos los archivos."""
         resultados = {}
 
         for nombre_carpeta, carpeta_id in self.carpetas.items():
             if carpeta_id and nombre_carpeta != 'todas':  # Omitir la carpeta padre
-                print(f"Buscando en {nombre_carpeta}...")
-                archivos = self.buscar_en_carpeta(query, carpeta_id)
+                print(f"Procesando carpeta: {nombre_carpeta}...")
+                
+                # Si la query está vacía, obtener todos los archivos de la carpeta
+                if not query or not query.strip():
+                    print(f"No hay query, listando todos los archivos en {nombre_carpeta}...")
+                    archivos = self.obtener_archivos_de_carpeta(carpeta_id)
+                else:
+                    # Si hay query, buscar normalmente
+                    print(f"Buscando '{query}' en {nombre_carpeta}...")
+                    archivos = self.buscar_en_carpeta(query, carpeta_id)
+                
                 if archivos:
                     resultados[nombre_carpeta] = archivos
 
@@ -150,30 +168,37 @@ class DriveSearchService:
         print(f"DEBUG: Carpetas cargadas: {self.carpetas}")
         return {k: v for k, v in self.carpetas.items() if v and v != 'None'}
 
-    def obtener_archivos_de_carpeta(self, carpeta_id: str, limite: int = 50) -> List[Dict]:
-        """Obtener todos los archivos de una carpeta específica"""
+    def obtener_archivos_de_carpeta(self, carpeta_id: str) -> List[Dict]:
+        """Obtener todos los archivos de una carpeta específica usando paginación."""
+        archivos_formateados = []
+        page_token = None
         try:
-            query = f"parents in '{carpeta_id}'"
+            while True:
+                query = f"'{carpeta_id}' in parents"
 
-            results = self.service.files().list(
-                q=query,
-                pageSize=limite,
-                fields="nextPageToken, files(id, name, webViewLink, webContentLink, mimeType, size, modifiedTime)"
-            ).execute()
+                results = self.service.files().list(
+                    q=query,
+                    pageSize=100, # Aumentado para eficiencia
+                    fields="nextPageToken, files(id, name, webViewLink, webContentLink, mimeType, size, modifiedTime)",
+                    pageToken=page_token
+                ).execute()
 
-            archivos = results.get('files', [])
+                archivos = results.get('files', [])
 
-            archivos_formateados = []
-            for archivo in archivos:
-                archivos_formateados.append({
-                    "id": archivo.get('id'),
-                    "name": archivo.get('name'),
-                    "view_link": archivo.get('webViewLink'),
-                    "download_link": f"https://drive.google.com/file/d/{archivo.get('id')}/view",
-                    "mime_type": archivo.get('mimeType'),
-                    "size": archivo.get('size'),
-                    "modified_time": archivo.get('modifiedTime')
-                })
+                for archivo in archivos:
+                    archivos_formateados.append({
+                        "id": archivo.get('id'),
+                        "name": archivo.get('name'),
+                        "view_link": archivo.get('webViewLink'),
+                        "download_link": f"https://drive.google.com/file/d/{archivo.get('id')}/view",
+                        "mime_type": archivo.get('mimeType'),
+                        "size": archivo.get('size'),
+                        "modified_time": archivo.get('modifiedTime')
+                    })
+                
+                page_token = results.get('nextPageToken', None)
+                if page_token is None:
+                    break
 
             return archivos_formateados
 
