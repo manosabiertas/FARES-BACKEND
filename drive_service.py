@@ -106,7 +106,7 @@ class DriveSearchService:
                 # Ejecutar búsqueda
                 results = self.service.files().list(
                     q=search_query,
-                    pageSize=100,  # Aumentado para eficiencia
+                    pageSize=1000,  # Aumentado para eficiencia
                     fields="nextPageToken, files(id, name, webViewLink, webContentLink, mimeType, size, modifiedTime)",
                     pageToken=page_token
                 ).execute()
