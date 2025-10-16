@@ -29,15 +29,24 @@ class SourceLinker:
             with open(json_path, 'r', encoding='utf-8') as f:
                 self.reference_data = json.load(f)
 
-            # Crear diccionarios de lookup
+            # Crear diccionarios de lookup (con y sin extensión)
             self.file_to_title = {}
             self.file_to_link = {}
+            self.file_no_ext_to_title = {}  # Para matching sin extensión
 
             for item in self.reference_data:
                 if isinstance(item, dict) and "file" in item and "title" in item:
-                    self.file_to_title[item["file"]] = item["title"]
+                    file_name = item["file"]
+                    title = item["title"]
+
+                    # Guardar con nombre completo
+                    self.file_to_title[file_name] = title
                     if "link" in item:
-                        self.file_to_link[item["file"]] = item["link"]
+                        self.file_to_link[file_name] = item["link"]
+
+                    # Guardar también sin extensión para matching flexible
+                    file_no_ext = self._remove_extension(file_name)
+                    self.file_no_ext_to_title[file_no_ext] = title
 
             logger.info(f"SourceLinker loaded {len(self.file_to_title)} file mappings")
 
@@ -45,14 +54,32 @@ class SourceLinker:
             logger.error(f"Reference file not found: {json_path}")
             self.file_to_title = {}
             self.file_to_link = {}
+            self.file_no_ext_to_title = {}
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON: {e}")
             self.file_to_title = {}
             self.file_to_link = {}
+            self.file_no_ext_to_title = {}
+
+    def _remove_extension(self, filename: str) -> str:
+        """Remover la extensión del archivo"""
+        if '.' in filename:
+            return filename.rsplit('.', 1)[0]
+        return filename
 
     def get_title(self, filename: str) -> str:
         """Obtener título legible, o devolver el nombre del archivo si no hay match"""
-        return self.file_to_title.get(filename, filename)
+        # Primero intentar match exacto
+        if filename in self.file_to_title:
+            return self.file_to_title[filename]
+
+        # Si no hay match exacto, intentar sin extensión
+        filename_no_ext = self._remove_extension(filename)
+        if filename_no_ext in self.file_no_ext_to_title:
+            return self.file_no_ext_to_title[filename_no_ext]
+
+        # Si no hay match, devolver el nombre original
+        return filename
 
 
 class DriveSearchService:
