@@ -85,6 +85,17 @@ class SourceLinker:
             print(f"   ✓ Match sin extensión encontrado")
             return self.file_no_ext_to_title[filename_no_ext]
 
+        # Intentar buscar con prefijos de carpeta
+        # Los archivos en Drive no tienen prefijo, pero en JSON sí: "articulos - ", "audios - ", etc.
+        prefixes = ["articulos - ", "audios - ", "libros - ", "videos - ", "contemplaciones - ", "articulos_revistas - "]
+
+        for prefix in prefixes:
+            full_key = prefix + filename_no_ext
+            print(f"   Intentando con prefijo '{prefix}': '{full_key}'")
+            if full_key in self.file_no_ext_to_title:
+                print(f"   ✓ Match con prefijo encontrado!")
+                return self.file_no_ext_to_title[full_key]
+
         # DEBUG: Mostrar algunas claves similares del diccionario
         print(f"   ✗ NO encontrado. Muestras del JSON:")
         for i, key in enumerate(list(self.file_no_ext_to_title.keys())[:3]):
