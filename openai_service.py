@@ -35,6 +35,12 @@ class ChatResponse:
 
 
 class SourceLinker:
+    def _remove_extension(self, filename: str) -> str:
+        """Remover la extensión del archivo"""
+        if '.' in filename:
+            return filename.rsplit('.', 1)[0]
+        return filename
+
     def __init__(self, json_path: str = "fuente_agente_v1.json"):
         """Cargar archivo JSON con referencias a fuentes"""
         try:
@@ -44,13 +50,22 @@ class SourceLinker:
             # Crear diccionarios de lookup para búsqueda O(1)
             self.file_to_link = {}
             self.file_to_title = {}
+            self.file_no_ext_to_link = {}
+            self.file_no_ext_to_title = {}
             valid_items = 0
             invalid_items = 0
 
             for i, item in enumerate(self.reference_data):
                 if isinstance(item, dict) and "file" in item and "link" in item and "title" in item:
-                    self.file_to_link[item["file"]] = item["link"]
-                    self.file_to_title[item["file"]] = item["title"]
+                    file_name = item["file"]
+                    self.file_to_link[file_name] = item["link"]
+                    self.file_to_title[file_name] = item["title"]
+
+                    # Guardar también sin extensión para matching flexible
+                    file_no_ext = self._remove_extension(file_name)
+                    self.file_no_ext_to_link[file_no_ext] = item["link"]
+                    self.file_no_ext_to_title[file_no_ext] = item["title"]
+
                     valid_items += 1
                 else:
                     logger.warning(f"Invalid item at index {i}: {item}")
@@ -63,19 +78,55 @@ class SourceLinker:
             self.reference_data = []
             self.file_to_link = {}
             self.file_to_title = {}
+            self.file_no_ext_to_link = {}
+            self.file_no_ext_to_title = {}
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON: {e}")
             self.reference_data = []
             self.file_to_link = {}
             self.file_to_title = {}
+            self.file_no_ext_to_link = {}
+            self.file_no_ext_to_title = {}
 
     def get_download_link(self, filename: str) -> Optional[str]:
         """Obtener link de descarga para un archivo específico"""
-        return self.file_to_link.get(filename)
+        # Primero intentar match exacto
+        if filename in self.file_to_link:
+            return self.file_to_link[filename]
+
+        # Si no hay match exacto, intentar sin extensión
+        filename_no_ext = self._remove_extension(filename)
+        if filename_no_ext in self.file_no_ext_to_link:
+            return self.file_no_ext_to_link[filename_no_ext]
+
+        # Intentar con prefijos de carpeta
+        prefixes = ["articulos - ", "audios - ", "libros - ", "videos - ", "contemplaciones - ", "articulos_revistas - "]
+        for prefix in prefixes:
+            full_key = prefix + filename_no_ext
+            if full_key in self.file_no_ext_to_link:
+                return self.file_no_ext_to_link[full_key]
+
+        return None
 
     def get_title(self, filename: str) -> Optional[str]:
         """Obtener título legible para un archivo específico"""
-        return self.file_to_title.get(filename)
+        # Primero intentar match exacto
+        if filename in self.file_to_title:
+            return self.file_to_title[filename]
+
+        # Si no hay match exacto, intentar sin extensión
+        filename_no_ext = self._remove_extension(filename)
+        if filename_no_ext in self.file_no_ext_to_title:
+            return self.file_no_ext_to_title[filename_no_ext]
+
+        # Intentar con prefijos de carpeta
+        prefixes = ["articulos - ", "audios - ", "libros - ", "videos - ", "contemplaciones - ", "articulos_revistas - "]
+        for prefix in prefixes:
+            full_key = prefix + filename_no_ext
+            if full_key in self.file_no_ext_to_title:
+                return self.file_no_ext_to_title[full_key]
+
+        return None
 
 
 class OpenAIService:
@@ -186,8 +237,12 @@ class OpenAIService:
                                 # Número original de la cita
                                 original_marker = annotation.text
 
-                                # Obtener link de descarga
+                                # Obtener link de descarga y título
                                 download_link = self.source_linker.get_download_link(file_name)
+                                display_title = self.source_linker.get_title(file_name)
+
+                                # Usar el título si existe, sino usar el file_name
+                                citation_name = display_title if display_title else file_name
 
                                 # Solo agregar cita si tiene download_link válido
                                 if download_link:
@@ -196,7 +251,7 @@ class OpenAIService:
                                         # Reusar el número de la primera aparición
                                         existing_marker = seen_files[file_citation.file_id]
                                         citation_mapping[original_marker] = existing_marker
-                                        logger.info(f"↻ Duplicate citation reused: {file_name} -> {existing_marker}")
+                                        logger.info(f"↻ Duplicate citation reused: {citation_name} -> {existing_marker}")
                                     else:
                                         # Nuevo número basado en el índice del array filtrado
                                         new_number = len(citations) + 1
@@ -208,12 +263,12 @@ class OpenAIService:
 
                                         citations.append(Citation(
                                             file_id=file_citation.file_id,
-                                            file_name=file_name,
+                                            file_name=citation_name,  # Usar título en lugar de file_name
                                             quote="",
                                             text=new_marker,
                                             download_link=download_link
                                         ))
-                                        logger.info(f"✓ Citation {new_number}: {file_name}")
+                                        logger.info(f"✓ Citation {new_number}: {citation_name}")
                                 else:
                                     # Marcar para eliminar del texto
                                     citation_mapping[original_marker] = ""
