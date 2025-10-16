@@ -69,14 +69,26 @@ class SourceLinker:
 
     def get_title(self, filename: str) -> str:
         """Obtener título legible, o devolver el nombre del archivo si no hay match"""
+        # DEBUG: Mostrar qué estamos buscando
+        print(f"🔍 Buscando: '{filename}'")
+
         # Primero intentar match exacto
         if filename in self.file_to_title:
+            print(f"   ✓ Match exacto encontrado")
             return self.file_to_title[filename]
 
         # Si no hay match exacto, intentar sin extensión
         filename_no_ext = self._remove_extension(filename)
+        print(f"   Intentando sin extensión: '{filename_no_ext}'")
+
         if filename_no_ext in self.file_no_ext_to_title:
+            print(f"   ✓ Match sin extensión encontrado")
             return self.file_no_ext_to_title[filename_no_ext]
+
+        # DEBUG: Mostrar algunas claves similares del diccionario
+        print(f"   ✗ NO encontrado. Muestras del JSON:")
+        for i, key in enumerate(list(self.file_no_ext_to_title.keys())[:3]):
+            print(f"      - '{key}'")
 
         # Si no hay match, devolver el nombre original
         return filename
