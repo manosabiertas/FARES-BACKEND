@@ -35,20 +35,22 @@ class ChatResponse:
 
 
 class SourceLinker:
-    def __init__(self, json_path: str = "json.json"):
+    def __init__(self, json_path: str = "fuente_agente_v1.json"):
         """Cargar archivo JSON con referencias a fuentes"""
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 self.reference_data = json.load(f)
 
-            # Crear diccionario de lookup para búsqueda O(1)
-            self.title_to_link = {}
+            # Crear diccionarios de lookup para búsqueda O(1)
+            self.file_to_link = {}
+            self.file_to_title = {}
             valid_items = 0
             invalid_items = 0
 
             for i, item in enumerate(self.reference_data):
-                if isinstance(item, dict) and "titulo" in item and "link" in item:
-                    self.title_to_link[item["titulo"]] = item["link"]
+                if isinstance(item, dict) and "file" in item and "link" in item and "title" in item:
+                    self.file_to_link[item["file"]] = item["link"]
+                    self.file_to_title[item["file"]] = item["title"]
                     valid_items += 1
                 else:
                     logger.warning(f"Invalid item at index {i}: {item}")
@@ -59,15 +61,21 @@ class SourceLinker:
         except FileNotFoundError:
             logger.error(f"Reference file not found: {json_path}")
             self.reference_data = []
-            self.title_to_link = {}
+            self.file_to_link = {}
+            self.file_to_title = {}
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON: {e}")
             self.reference_data = []
-            self.title_to_link = {}
+            self.file_to_link = {}
+            self.file_to_title = {}
 
     def get_download_link(self, filename: str) -> Optional[str]:
         """Obtener link de descarga para un archivo específico"""
-        return self.title_to_link.get(filename)
+        return self.file_to_link.get(filename)
+
+    def get_title(self, filename: str) -> Optional[str]:
+        """Obtener título legible para un archivo específico"""
+        return self.file_to_title.get(filename)
 
 
 class OpenAIService:
