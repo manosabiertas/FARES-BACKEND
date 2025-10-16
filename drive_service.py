@@ -5,6 +5,7 @@ Permite buscar en múltiples carpetas específicas de Diego Fares
 
 import os
 import json
+import logging
 from typing import List, Optional, Dict, Any
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -14,14 +15,101 @@ from dotenv import load_dotenv
 # Cargar variables de entorno
 load_dotenv()
 
+# Configurar logging
+logger = logging.getLogger(__name__)
+
 # Scopes necesarios para Google Drive API
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+
+
+class SourceLinker:
+    """Clase para mapear nombres de archivos a títulos legibles"""
+    def __init__(self, json_path: str = "fuente_agente_v1.json"):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                self.reference_data = json.load(f)
+
+            # Crear diccionarios de lookup (con y sin extensión)
+            self.file_to_title = {}
+            self.file_to_link = {}
+            self.file_no_ext_to_title = {}  # Para matching sin extensión
+
+            for item in self.reference_data:
+                if isinstance(item, dict) and "file" in item and "title" in item:
+                    file_name = item["file"]
+                    title = item["title"]
+
+                    # Guardar con nombre completo
+                    self.file_to_title[file_name] = title
+                    if "link" in item:
+                        self.file_to_link[file_name] = item["link"]
+
+                    # Guardar también sin extensión para matching flexible
+                    file_no_ext = self._remove_extension(file_name)
+                    self.file_no_ext_to_title[file_no_ext] = title
+
+            logger.info(f"SourceLinker loaded {len(self.file_to_title)} file mappings")
+
+        except FileNotFoundError:
+            logger.error(f"Reference file not found: {json_path}")
+            self.file_to_title = {}
+            self.file_to_link = {}
+            self.file_no_ext_to_title = {}
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON: {e}")
+            self.file_to_title = {}
+            self.file_to_link = {}
+            self.file_no_ext_to_title = {}
+
+    def _remove_extension(self, filename: str) -> str:
+        """Remover la extensión del archivo"""
+        if '.' in filename:
+            return filename.rsplit('.', 1)[0]
+        return filename
+
+    def get_title(self, filename: str) -> str:
+        """Obtener título legible, o devolver el nombre del archivo si no hay match"""
+        # DEBUG: Mostrar qué estamos buscando
+        print(f"🔍 Buscando: '{filename}'")
+
+        # Primero intentar match exacto
+        if filename in self.file_to_title:
+            print(f"   ✓ Match exacto encontrado")
+            return self.file_to_title[filename]
+
+        # Si no hay match exacto, intentar sin extensión
+        filename_no_ext = self._remove_extension(filename)
+        print(f"   Intentando sin extensión: '{filename_no_ext}'")
+
+        if filename_no_ext in self.file_no_ext_to_title:
+            print(f"   ✓ Match sin extensión encontrado")
+            return self.file_no_ext_to_title[filename_no_ext]
+
+        # Intentar buscar con prefijos de carpeta
+        # Los archivos en Drive no tienen prefijo, pero en JSON sí: "articulos - ", "audios - ", etc.
+        prefixes = ["articulos - ", "audios - ", "libros - ", "videos - ", "contemplaciones - ", "articulos_revistas - "]
+
+        for prefix in prefixes:
+            full_key = prefix + filename_no_ext
+            print(f"   Intentando con prefijo '{prefix}': '{full_key}'")
+            if full_key in self.file_no_ext_to_title:
+                print(f"   ✓ Match con prefijo encontrado!")
+                return self.file_no_ext_to_title[full_key]
+
+        # DEBUG: Mostrar algunas claves similares del diccionario
+        print(f"   ✗ NO encontrado. Muestras del JSON:")
+        for i, key in enumerate(list(self.file_no_ext_to_title.keys())[:3]):
+            print(f"      - '{key}'")
+
+        # Si no hay match, devolver el nombre original
+        return filename
 
 
 class DriveSearchService:
     def __init__(self):
         """Inicializar el servicio de Google Drive"""
         self.service = self._get_drive_service()
+        self.source_linker = SourceLinker()
 
         # Configuración de carpetas desde variables de entorno
         self.carpetas = {
@@ -116,9 +204,20 @@ class DriveSearchService:
 
                 # Formatear y agregar resultados
                 for archivo in archivos:
+                    file_name = archivo.get('name')
+                    # Buscar título legible desde fuente_agente_v1.json
+                    display_title = self.source_linker.get_title(file_name)
+
+                    # DEBUG: Log para ver si encuentra el título
+                    if display_title != file_name:
+                        print(f"✓ MATCH: '{file_name}' -> '{display_title}'")
+                    else:
+                        print(f"✗ NO MATCH: '{file_name}' (sin título en JSON)")
+
                     archivos_formateados.append({
                         "id": archivo.get('id'),
-                        "name": archivo.get('name'),
+                        "name": display_title,  # Usar título legible en lugar del nombre del archivo
+                        "file_name": file_name,  # Mantener el nombre original del archivo para referencia
                         "view_link": archivo.get('webViewLink'),
                         "download_link": f"https://drive.google.com/file/d/{archivo.get('id')}/view",
                         "mime_type": archivo.get('mimeType'),
@@ -186,9 +285,20 @@ class DriveSearchService:
                 archivos = results.get('files', [])
 
                 for archivo in archivos:
+                    file_name = archivo.get('name')
+                    # Buscar título legible desde fuente_agente_v1.json
+                    display_title = self.source_linker.get_title(file_name)
+
+                    # DEBUG: Log para ver si encuentra el título
+                    if display_title != file_name:
+                        print(f"✓ MATCH: '{file_name}' -> '{display_title}'")
+                    else:
+                        print(f"✗ NO MATCH: '{file_name}' (sin título en JSON)")
+
                     archivos_formateados.append({
                         "id": archivo.get('id'),
-                        "name": archivo.get('name'),
+                        "name": display_title,  # Usar título legible en lugar del nombre del archivo
+                        "file_name": file_name,  # Mantener el nombre original del archivo para referencia
                         "view_link": archivo.get('webViewLink'),
                         "download_link": f"https://drive.google.com/file/d/{archivo.get('id')}/view",
                         "mime_type": archivo.get('mimeType'),
