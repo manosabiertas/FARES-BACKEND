@@ -185,6 +185,12 @@ class DriveSearchService:
                     # Buscar título legible desde fuente_agente_v1.json
                     display_title = self.source_linker.get_title(file_name)
 
+                    # DEBUG: Log para ver si encuentra el título
+                    if display_title != file_name:
+                        print(f"✓ MATCH: '{file_name}' -> '{display_title}'")
+                    else:
+                        print(f"✗ NO MATCH: '{file_name}' (sin título en JSON)")
+
                     archivos_formateados.append({
                         "id": archivo.get('id'),
                         "name": display_title,  # Usar título legible en lugar del nombre del archivo
@@ -259,6 +265,12 @@ class DriveSearchService:
                     file_name = archivo.get('name')
                     # Buscar título legible desde fuente_agente_v1.json
                     display_title = self.source_linker.get_title(file_name)
+
+                    # DEBUG: Log para ver si encuentra el título
+                    if display_title != file_name:
+                        print(f"✓ MATCH: '{file_name}' -> '{display_title}'")
+                    else:
+                        print(f"✗ NO MATCH: '{file_name}' (sin título en JSON)")
 
                     archivos_formateados.append({
                         "id": archivo.get('id'),
