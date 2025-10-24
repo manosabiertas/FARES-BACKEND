@@ -86,8 +86,8 @@ class SourceLinker:
             return self.file_no_ext_to_title[filename_no_ext]
 
         # Intentar buscar con prefijos de carpeta
-        # Los archivos en Drive no tienen prefijo, pero en JSON sí: "articulos - ", "audios - ", etc.
-        prefixes = ["articulos - ", "audios - ", "libros - ", "videos - ", "contemplaciones - ", "articulos_revistas - "]
+        # Los archivos en Drive no tienen prefijo, pero en JSON sí: "articulos en revistas - ", "audios - ", etc.
+        prefixes = ["articulos en revistas - ", "audios - ", "contemplaciones - ", "libros - ", "talleres e.e - ", "videos - "]
 
         for prefix in prefixes:
             full_key = prefix + filename_no_ext
@@ -113,12 +113,11 @@ class DriveSearchService:
 
         # Configuración de carpetas desde variables de entorno
         self.carpetas = {
-            'todas': os.getenv('GOOGLE_DRIVE_PARENT_FOLDER_ID'),
-            'articulos': os.getenv('GOOGLE_DRIVE_ARTICULOS_ID'),
-            'articulos_revistas': os.getenv('GOOGLE_DRIVE_ARTICULOS_REVISTAS_ID'),
+            'articulos en revistas': os.getenv('GOOGLE_DRIVE_ARTICULOS_REVISTAS_ID'),
             'audios': os.getenv('GOOGLE_DRIVE_AUDIOS_ID'),
             'contemplaciones': os.getenv('GOOGLE_DRIVE_CONTEMPLACIONES_ID'),
             'libros': os.getenv('GOOGLE_DRIVE_LIBROS_ID'),
+            'talleres e.e': os.getenv('GOOGLE_DRIVE_TALLERES_ID'),
             'videos': os.getenv('GOOGLE_DRIVE_VIDEOS_ID')
         }
 
@@ -245,7 +244,7 @@ class DriveSearchService:
         resultados = {}
 
         for nombre_carpeta, carpeta_id in self.carpetas.items():
-            if carpeta_id and nombre_carpeta != 'todas':  # Omitir la carpeta padre
+            if carpeta_id:
                 print(f"Procesando carpeta: {nombre_carpeta}...")
                 
                 # Si la query está vacía, obtener todos los archivos de la carpeta
