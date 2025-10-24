@@ -112,12 +112,13 @@ class DriveSearchService:
         self.source_linker = SourceLinker()
 
         # Configuración de carpetas desde variables de entorno
+        # Las claves deben coincidir con los nombres que envía el frontend
         self.carpetas = {
-            'articulos en revistas': os.getenv('GOOGLE_DRIVE_ARTICULOS_REVISTAS_ID'),
+            'articulos': os.getenv('GOOGLE_DRIVE_ARTICULOS_REVISTAS_ID'),
             'audios': os.getenv('GOOGLE_DRIVE_AUDIOS_ID'),
             'contemplaciones': os.getenv('GOOGLE_DRIVE_CONTEMPLACIONES_ID'),
             'libros': os.getenv('GOOGLE_DRIVE_LIBROS_ID'),
-            'talleres e.e': os.getenv('GOOGLE_DRIVE_TALLERES_ID'),
+            'talleres': os.getenv('GOOGLE_DRIVE_TALLERES_ID'),
             'videos': os.getenv('GOOGLE_DRIVE_VIDEOS_ID')
         }
 
