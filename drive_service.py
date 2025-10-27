@@ -24,7 +24,7 @@ SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
 class SourceLinker:
     """Clase para mapear nombres de archivos a títulos legibles"""
-    def __init__(self, json_path: str = "fuente_agente_v1.json"):
+    def __init__(self, json_path: str = "fuente_agente_v2.json"):
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 self.reference_data = json.load(f)
@@ -205,7 +205,7 @@ class DriveSearchService:
                 # Formatear y agregar resultados
                 for archivo in archivos:
                     file_name = archivo.get('name')
-                    # Buscar título legible desde fuente_agente_v1.json
+                    # Buscar título legible desde fuente_agente_v2.json
                     display_title = self.source_linker.get_title(file_name)
 
                     # DEBUG: Log para ver si encuentra el título
@@ -286,7 +286,7 @@ class DriveSearchService:
 
                 for archivo in archivos:
                     file_name = archivo.get('name')
-                    # Buscar título legible desde fuente_agente_v1.json
+                    # Buscar título legible desde fuente_agente_v2.json
                     display_title = self.source_linker.get_title(file_name)
 
                     # DEBUG: Log para ver si encuentra el título
