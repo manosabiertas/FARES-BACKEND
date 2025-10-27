@@ -41,7 +41,7 @@ class SourceLinker:
             return filename.rsplit('.', 1)[0]
         return filename
 
-    def __init__(self, json_path: str = "fuente_agente_v1.json"):
+    def __init__(self, json_path: str = "fuente_agente_v2.json"):
         """Cargar archivo JSON con referencias a fuentes"""
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
