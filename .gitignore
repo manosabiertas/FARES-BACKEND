@@ -33,3 +33,4 @@ Thumbs.db
 # Logs
 *.log
 logs/
+separar_por_link_id.py
