@@ -128,36 +128,23 @@ class DriveSearchService:
             print(f"  {nombre}: {valor}")
 
     def _get_drive_service(self):
-        """Crear y autenticar el servicio de Google Drive usando Service Account o OAuth según entorno"""
-        env = os.environ.get("ENV", "development")
+        """Crear y autenticar el servicio de Google Drive usando Service Account"""
+
+        # Primero intentar usar Service Account (para Railway)
         service_account_info = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
-
-        # En producción: solo Service Account desde variable de entorno
-        if env == "production":
-            if not service_account_info:
-                raise Exception("ERROR: GOOGLE_SERVICE_ACCOUNT_JSON no está configurada en producción")
-            try:
-                service_account_data = json.loads(service_account_info)
-                credentials = service_account.Credentials.from_service_account_info(
-                    service_account_data, scopes=SCOPES
-                )
-                print("OK: Usando Service Account desde variable de entorno (producción)")
-                return build('drive', 'v3', credentials=credentials)
-            except Exception as e:
-                raise Exception(f"ERROR: Error con Service Account en producción: {e}")
-
-        # En desarrollo: Service Account o fallback a OAuth
         if service_account_info:
             try:
+                # Parsear el JSON desde variable de entorno
                 service_account_data = json.loads(service_account_info)
                 credentials = service_account.Credentials.from_service_account_info(
                     service_account_data, scopes=SCOPES
                 )
-                print("OK: Usando Service Account desde variable de entorno (dev)")
+                print("OK: Usando Service Account desde variable de entorno")
                 return build('drive', 'v3', credentials=credentials)
             except Exception as e:
                 print(f"ERROR: Error con Service Account: {e}")
 
+        # Fallback: buscar archivo service-account.json local
         if os.path.exists('service-account.json'):
             try:
                 credentials = service_account.Credentials.from_service_account_file(
@@ -168,7 +155,7 @@ class DriveSearchService:
             except Exception as e:
                 print(f"ERROR: Error con archivo Service Account: {e}")
 
-        # Fallback: OAuth solo en desarrollo
+        # Último fallback: OAuth (solo para desarrollo local)
         print("WARNING: Service Account no encontrado, usando OAuth (solo desarrollo local)")
         from google.auth.transport.requests import Request
         from google.oauth2.credentials import Credentials
