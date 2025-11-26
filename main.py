@@ -1,16 +1,6 @@
-
 """
 API principal que integra servicios de OpenAI y Google Drive
 """
-
-# Solo crear credentials.json si el entorno NO es productivo
-import os
-if os.environ.get("ENV", "development") != "production":
-    if not os.path.exists("credentials.json"):
-        creds_env = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-        if creds_env:
-            with open("credentials.json", "w") as f:
-                f.write(creds_env)
 
 import logging
 from typing import List, Optional, Dict, Any
